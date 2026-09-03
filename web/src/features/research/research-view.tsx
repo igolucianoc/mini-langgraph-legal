@@ -8,7 +8,7 @@ import type { HistoryItem } from '@/lib/types';
 import { GraphProgress } from './graph-progress';
 import { ResultPanel } from './result-panel';
 import { useResearchStream } from './use-research-stream';
-import { categoryLabel } from './labels';
+import { categoryLabel, outcomeLabel } from './labels';
 
 const EXAMPLES = [
   'Quais são os requisitos para uma cobrança judicial de uma dívida contratual?',
@@ -114,7 +114,14 @@ export function ResearchView() {
                 {busy ? 'Executando...' : 'Pesquisar'}
               </PrimaryButton>
               {state.phase !== 'idle' ? (
-                <GhostButton type="button" onClick={reset} disabled={busy}>
+                <GhostButton
+                  type="button"
+                  onClick={() => {
+                    reset();
+                    setQuestion('');
+                  }}
+                  disabled={busy}
+                >
                   Limpar
                 </GhostButton>
               ) : null}
@@ -248,7 +255,7 @@ export function ResearchView() {
                       }}
                     >
                       {categoryLabel(item.category)} ·{' '}
-                      {item.lastExecution?.outcome ?? 'pendente'}
+                      {outcomeLabel(item.lastExecution?.outcome ?? null)}
                     </span>
                   </li>
                 ))}
