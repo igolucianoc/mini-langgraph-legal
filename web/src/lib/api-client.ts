@@ -74,3 +74,13 @@ export async function fetchHistory(accessToken: string): Promise<HistoryItem[]> 
   }
   return (await response.json()) as HistoryItem[];
 }
+
+export async function clearHistory(accessToken: string): Promise<void> {
+  const response = await fetch(`${API_URL}/research/history`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    throw new ApiError(await parseError(response), response.status);
+  }
+}

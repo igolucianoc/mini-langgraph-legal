@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Card, GhostButton, PrimaryButton } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-context';
-import { fetchHistory } from '@/lib/api-client';
+import { clearHistory, fetchHistory } from '@/lib/api-client';
 import type { HistoryItem } from '@/lib/types';
 import { GraphProgress } from './graph-progress';
 import { ResultPanel } from './result-panel';
@@ -21,6 +21,7 @@ export function ResearchView() {
   const { state, start, reset } = useResearchStream(accessToken);
   const [question, setQuestion] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [clearing, setClearing] = useState(false);
 
   const loadHistory = (): void => {
     if (!accessToken) {
@@ -30,6 +31,17 @@ export function ResearchView() {
       .then(setHistory)
       .catch(() => undefined);
   };
+
+  function handleClearHistory(): void {
+    if (!accessToken || clearing) {
+      return;
+    }
+    setClearing(true);
+    clearHistory(accessToken)
+      .then(() => setHistory([]))
+      .catch(() => undefined)
+      .finally(() => setClearing(false));
+  }
 
   useEffect(loadHistory, [accessToken]);
 
@@ -175,9 +187,36 @@ export function ResearchView() {
           ) : null}
 
           <Card tone="plum">
-            <h3 style={{ fontWeight: 500, marginBottom: 'var(--spacing-8)' }}>
-              Histórico
-            </h3>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 'var(--spacing-8)',
+              }}
+            >
+              <h3 style={{ fontWeight: 500 }}>Histórico</h3>
+              {history.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={handleClearHistory}
+                  disabled={clearing}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--color-pale-lilac)',
+                    cursor: clearing ? 'not-allowed' : 'pointer',
+                    opacity: clearing ? 0.6 : 1,
+                    padding: 0,
+                    fontFamily: 'var(--font-suisse-intl)',
+                    fontSize: 'var(--text-caption)',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  {clearing ? 'Limpando...' : 'Limpar histórico'}
+                </button>
+              ) : null}
+            </div>
             {history.length === 0 ? (
               <p style={{ color: 'var(--color-pale-lilac)', fontSize: 'var(--text-body-sm)' }}>
                 Nenhuma pesquisa ainda.

@@ -6,16 +6,18 @@ import type {
 /**
  * Nó 2: consolida a decisão de pesquisar.
  *
- * Perguntas fora de escopo não disparam pesquisa (serão respondidas de forma
- * segura como `direct_answer`). Nos demais casos, respeita a sugestão da
- * classificação.
+ * Regra de negócio do projeto: toda pergunta JURÍDICA deve ser ancorada na base
+ * documental. Portanto, pesquisamos sempre que a intenção NÃO for `out_of_scope`.
+ * O palpite `needsResearch` do LLM é apenas um sinal e NÃO pode, sozinho, pular a
+ * pesquisa — caso contrário perguntas conceituais legítimas cairiam em
+ * "fora de escopo" indevidamente. Só perguntas realmente fora do domínio
+ * jurídico (tempo, esportes, etc.) seguem para `direct_answer`.
  */
 export function createDecideResearchNode() {
   return async function decideResearch(
     state: LegalResearchState,
   ): Promise<LegalResearchUpdate> {
-    const needsResearch =
-      state.intent !== 'out_of_scope' && state.needsResearch !== false;
+    const needsResearch = state.intent !== 'out_of_scope';
     return { needsResearch };
   };
 }

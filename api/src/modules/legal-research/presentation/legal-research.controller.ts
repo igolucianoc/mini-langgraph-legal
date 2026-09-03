@@ -1,7 +1,9 @@
 import {
   BadRequestException,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   MessageEvent,
   Query,
   Sse,
@@ -109,6 +111,22 @@ export class LegalResearchController {
       createdAt: q.createdAt,
       lastExecution: q.executions[0] ?? null,
     }));
+  }
+
+  /**
+   * Limpa todo o histórico de pesquisas do usuário autenticado.
+   *
+   * Remove as `ResearchQuery` do usuário; execuções e citações associadas são
+   * apagadas em cascata (onDelete: Cascade no schema Prisma). Só afeta os dados
+   * do próprio usuário.
+   */
+  @Delete('history')
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard)
+  async clearHistory(@CurrentUser() user: AuthenticatedUser): Promise<void> {
+    await this.prisma.researchQuery.deleteMany({
+      where: { userId: user.id },
+    });
   }
 
   private verifyToken(token: string): AuthenticatedUser {

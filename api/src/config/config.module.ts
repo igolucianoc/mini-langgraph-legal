@@ -8,6 +8,10 @@ import { AppConfigService } from './app-config.service';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      // Em dev local carrega api/.env; no container o arquivo não existe
+      // (excluído via .dockerignore) e as variáveis vêm do docker-compose.
+      // Variáveis já presentes em process.env têm precedência sobre o arquivo.
+      envFilePath: '.env',
       validate: (raw) => validateEnv(raw),
     }),
   ],
