@@ -1,0 +1,98 @@
+/*
+ * Design tokens — derivados de DESIGN.md (Front style reference).
+ * Midnight plum control room, one lime spark. Não alterar DESIGN.md.
+ */
+:root {
+  /* Colors */
+  --color-aubergine: #300c41;
+  --color-royal-plum: #5b1f76;
+  --color-lime-spark: #dee948;
+  --color-bright-violet: #8034bf;
+  --color-lavender-glow: #b375f4;
+  --color-ink: #1c1e20;
+  --color-frost: #f0f4fe;
+  --color-pale-lilac: #e2dcf6;
+  --color-stone: #dedfe2;
+  --color-slate: #5b5d63;
+  --color-pewter: #7c8088;
+  --color-ash: #8e929b;
+  --color-midnight-navy: #0d1d39;
+  --color-lavender-whisper: #d0c6f0;
+  --color-deep-olive: #1d1f04;
+
+  /* Typography */
+  --font-suisse-intl: 'Suisse Intl', ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --text-caption: 12px;
+  --text-body-sm: 14px;
+  --text-body: 16px;
+  --text-subheading: 20px;
+  --text-heading-sm: 25px;
+  --text-heading: 36px;
+  --text-heading-lg: 43px;
+  --text-display: 62px;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+
+  /* Spacing */
+  --spacing-8: 8px;
+  --spacing-16: 16px;
+  --spacing-24: 24px;
+  --spacing-32: 32px;
+  --spacing-40: 40px;
+  --spacing-48: 48px;
+  --spacing-64: 64px;
+  --spacing-80: 80px;
+
+  /* Layout */
+  --page-max-width: 1200px;
+  --card-padding: 24px;
+
+  /* Radius */
+  --radius-cards: 20px;
+  --radius-pills: 64px;
+  --radius-inputs: 10px;
+  --radius-buttons: 40px;
+
+  /* Shadow */
+  --shadow-subtle: rgb(208, 198, 240) 0px 0px 0px 1px inset;
+
+  /* Surfaces */
+  --surface-aubergine-canvas: #300c41;
+  --surface-royal-plum-band: #5b1f76;
+  --surface-lilac-mist: #e2dcf6;
+  --surface-frost-panel: #f0f4fe;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: var(--color-aubergine);
+  color: #ffffff;
+  font-family: var(--font-suisse-intl);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-regular);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-lime-spark);
+  outline-offset: 2px;
+}
