@@ -194,9 +194,15 @@ npm run dev
 
 ### Seed
 
-O seed (`api/prisma/seed.ts`) é **determinístico** e **idempotente**: recria a base
-documental fictícia (7 documentos, 21 trechos) com embeddings gerados localmente,
-sem chamar LLM nem API externa. Rode `npm run db:seed` quantas vezes quiser.
+O seed (`api/prisma/seed.ts`) é **idempotente**: recria a base documental fictícia
+(7 documentos, 21 trechos). Ele respeita `AI_PROVIDER` para gerar os embeddings:
+com `fake` usa o embedding **determinístico local** (sem rede); com `huggingface`
+gera os embeddings pela mesma Hugging Face usada em runtime.
+
+> **Importante:** documentos e perguntas precisam usar o **mesmo** modelo de
+> embeddings. Ao alternar `AI_PROVIDER` entre `fake` e `huggingface`, rode
+> `npm run db:seed` novamente para reindexar — caso contrário a busca vetorial
+> não encontra evidências e toda pergunta cai em "evidência insuficiente".
 
 ---
 

@@ -24,7 +24,10 @@ export interface HuggingFaceLlmConfig {
 }
 
 interface ChatCompletionResponse {
-  choices?: Array<{ message?: { content?: string } }>;
+  choices?: Array<{
+    message?: { content?: string; reasoning_content?: string };
+    finish_reason?: string;
+  }>;
 }
 
 /**
@@ -130,7 +133,9 @@ export class HuggingFaceLlmProvider implements LlmProvider {
             model: this.config.model,
             messages,
             temperature: 0.1,
-            max_tokens: 800,
+            // Alto o suficiente para modelos de reasoning, que gastam tokens
+            // "pensando" antes de emitir o conteúdo final.
+            max_tokens: 3000,
             response_format: { type: 'json_object' },
           }),
           signal: controller.signal,
@@ -146,7 +151,10 @@ export class HuggingFaceLlmProvider implements LlmProvider {
       }
 
       const data = (await response.json()) as ChatCompletionResponse;
-      const content = data.choices?.[0]?.message?.content;
+      const message = data.choices?.[0]?.message;
+      // Alguns modelos de reasoning colocam a saída em `reasoning_content`
+      // quando `content` vem vazio; aceitamos ambos e o JSON é extraído depois.
+      const content = message?.content || message?.reasoning_content;
       if (!content) {
         throw new Error('Resposta da Hugging Face sem conteúdo.');
       }
@@ -161,14 +169,102 @@ export class HuggingFaceLlmProvider implements LlmProvider {
     }
   }
 
-  /** Extrai o primeiro objeto JSON do texto retornado pelo modelo. */
+  /**
+   * Extrai um objeto JSON do texto retornado pelo modelo.
+   *
+   * Modelos com "thinking" (como o MiniMax-M3) podem emitir raciocínio antes do
+   * JSON, envolver a saída em fences markdown (```json ... ```), ou incluir
+   * chaves `{}` no texto de raciocínio. A estratégia:
+   *  1. remove blocos de reasoning delimitados (`<think>…</think>` etc.);
+   *  2. tenta cada bloco de fenced code (```…```) como candidato;
+   *  3. faz varredura balanceada de chaves para achar o primeiro objeto válido.
+   */
   private extractJson(content: string): unknown {
-    const trimmed = content.trim();
-    const start = trimmed.indexOf('{');
-    const end = trimmed.lastIndexOf('}');
-    if (start === -1 || end === -1 || end < start) {
-      throw new Error('Não foi possível localizar JSON na resposta do modelo.');
+    const withoutThinking = this.stripReasoningBlocks(content).trim();
+
+    for (const candidate of this.jsonCandidates(withoutThinking)) {
+      const parsed = this.tryParse(candidate);
+      if (parsed !== undefined) {
+        return parsed;
+      }
     }
-    return JSON.parse(trimmed.slice(start, end + 1)) as unknown;
+
+    throw new Error('Não foi possível localizar JSON na resposta do modelo.');
+  }
+
+  /** Remove blocos de raciocínio comuns em modelos com modo "thinking". */
+  private stripReasoningBlocks(content: string): string {
+    return content
+      .replace(/<think>[\s\S]*?<\/think>/gi, '')
+      .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '');
+  }
+
+  /**
+   * Gera candidatos a JSON, em ordem de preferência: conteúdo de fences de
+   * código primeiro; depois cada objeto `{…}` balanceado encontrado no texto.
+   */
+  private *jsonCandidates(text: string): Generator<string> {
+    const fenceRegex = /```(?:json)?\s*([\s\S]*?)```/gi;
+    let fence: RegExpExecArray | null;
+    while ((fence = fenceRegex.exec(text)) !== null) {
+      yield fence[1].trim();
+    }
+
+    yield* this.balancedObjects(text);
+  }
+
+  /**
+   * Percorre o texto e devolve cada objeto JSON com chaves balanceadas,
+   * ignorando chaves dentro de strings. Assim, `{` que aparecem no raciocínio
+   * não corrompem a extração do objeto real.
+   */
+  private *balancedObjects(text: string): Generator<string> {
+    let depth = 0;
+    let start = -1;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = 0; i < text.length; i += 1) {
+      const char = text[i];
+
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (char === '\\') {
+          escaped = true;
+        } else if (char === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (char === '"') {
+        inString = true;
+      } else if (char === '{') {
+        if (depth === 0) {
+          start = i;
+        }
+        depth += 1;
+      } else if (char === '}') {
+        if (depth > 0) {
+          depth -= 1;
+          if (depth === 0 && start !== -1) {
+            yield text.slice(start, i + 1);
+            start = -1;
+          }
+        }
+      }
+    }
+  }
+
+  private tryParse(candidate: string): unknown {
+    if (!candidate) {
+      return undefined;
+    }
+    try {
+      return JSON.parse(candidate) as unknown;
+    } catch {
+      return undefined;
+    }
   }
 }
