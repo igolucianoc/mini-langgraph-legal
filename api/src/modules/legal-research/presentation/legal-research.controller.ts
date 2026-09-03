@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   MessageEvent,
@@ -41,7 +42,13 @@ export class LegalResearchController {
     @Query('question') question: string,
   ): Observable<MessageEvent> {
     const user = this.verifyToken(token);
-    const parsed = askQuestionSchema.parse({ question });
+    const validation = askQuestionSchema.safeParse({ question });
+    if (!validation.success) {
+      throw new BadRequestException({
+        error: { code: 'VALIDATION_ERROR', issues: validation.error.issues },
+      });
+    }
+    const parsed = validation.data;
 
     return new Observable<MessageEvent>((subscriber) => {
       let cancelled = false;

@@ -193,6 +193,7 @@ export class LegalResearchService {
     message: string,
     startedAt: number,
   ): Promise<void> {
+    // A mensagem é interna (para diagnóstico) e não é exposta ao usuário final.
     await this.prisma.researchExecution.update({
       where: { id: executionId },
       data: {
