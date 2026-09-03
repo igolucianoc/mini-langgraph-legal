@@ -15,9 +15,10 @@ export const envSchema = z.object({
   JWT_ACCESS_TTL: z.coerce.number().int().positive().default(900),
   JWT_REFRESH_TTL: z.coerce.number().int().positive().default(604800),
 
-  AI_PROVIDER: z.enum(['fake', 'huggingface']).default('fake'),
-  HF_API_TOKEN: z.string().optional().default(''),
-  HF_MODEL: z.string().default('meta-llama/Llama-3.1-8B-Instruct'),
+  // IA sempre via Hugging Face. O token é obrigatório: sem ele a aplicação
+  // não sobe (não há mais fallback fake em runtime).
+  HF_API_TOKEN: z.string().min(1, 'HF_API_TOKEN é obrigatório'),
+  HF_MODEL: z.string().default('MiniMaxAI/MiniMax-M3'),
   HF_EMBEDDINGS_MODEL: z
     .string()
     .default('sentence-transformers/all-MiniLM-L6-v2'),

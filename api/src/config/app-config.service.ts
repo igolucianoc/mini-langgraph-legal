@@ -46,10 +46,6 @@ export class AppConfigService {
     return this.get('JWT_REFRESH_TTL');
   }
 
-  get aiProvider(): Env['AI_PROVIDER'] {
-    return this.get('AI_PROVIDER');
-  }
-
   get hfApiToken(): string {
     return this.get('HF_API_TOKEN');
   }

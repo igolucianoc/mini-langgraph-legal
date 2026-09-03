@@ -2,14 +2,11 @@
  * Seed da base documental jurídica fictícia.
  *
  * Os embeddings dos documentos DEVEM usar o mesmo provider das perguntas, senão
- * a busca vetorial não encontra nada (espaços vetoriais diferentes). Por isso o
- * seed respeita `AI_PROVIDER`:
- *  - `fake` (padrão): embedding determinístico local, sem rede.
- *  - `huggingface`: embeddings gerados pela Hugging Face (mesma do runtime).
+ * a busca vetorial não encontra nada (espaços vetoriais diferentes). A IA é
+ * sempre a Hugging Face: o seed exige `HF_API_TOKEN` (não há fallback local).
  */
 import { PrismaClient } from '@prisma/client';
 import { toPgVector } from '../src/shared/deterministic-embedding';
-import { LocalEmbeddingsProvider } from '../src/modules/legal-research/infrastructure/local-embeddings.provider';
 import { HuggingFaceEmbeddingsProvider } from '../src/modules/legal-research/infrastructure/huggingface/huggingface-embeddings.provider';
 import type { EmbeddingsProvider } from '../src/modules/legal-research/domain/contracts';
 import { seedDocuments } from './seed-data';
@@ -17,23 +14,25 @@ import { seedDocuments } from './seed-data';
 const prisma = new PrismaClient();
 
 function buildEmbeddingsProvider(): { provider: EmbeddingsProvider; label: string } {
-  const useHuggingFace =
-    process.env.AI_PROVIDER === 'huggingface' && !!process.env.HF_API_TOKEN;
-
-  if (useHuggingFace) {
-    return {
-      label: `huggingface (${process.env.HF_EMBEDDINGS_MODEL ?? 'sentence-transformers/all-MiniLM-L6-v2'})`,
-      provider: new HuggingFaceEmbeddingsProvider({
-        apiToken: process.env.HF_API_TOKEN ?? '',
-        model:
-          process.env.HF_EMBEDDINGS_MODEL ??
-          'sentence-transformers/all-MiniLM-L6-v2',
-        timeoutMs: Number(process.env.HF_TIMEOUT_MS ?? '30000'),
-      }),
-    };
+  const apiToken = process.env.HF_API_TOKEN;
+  if (!apiToken) {
+    throw new Error(
+      'HF_API_TOKEN é obrigatório para gerar os embeddings do seed (IA via Hugging Face).',
+    );
   }
 
-  return { provider: new LocalEmbeddingsProvider(), label: 'local (determinístico)' };
+  const model =
+    process.env.HF_EMBEDDINGS_MODEL ??
+    'sentence-transformers/all-MiniLM-L6-v2';
+
+  return {
+    label: `huggingface (${model})`,
+    provider: new HuggingFaceEmbeddingsProvider({
+      apiToken,
+      model,
+      timeoutMs: Number(process.env.HF_TIMEOUT_MS ?? '30000'),
+    }),
+  };
 }
 
 async function resetLegalBase(): Promise<void> {

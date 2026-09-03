@@ -34,9 +34,9 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-604800}
-      AI_PROVIDER: ${AI_PROVIDER:-fake}
-      HF_API_TOKEN: ${HF_API_TOKEN:-}
-      HF_MODEL: ${HF_MODEL:-meta-llama/Llama-3.1-8B-Instruct}
+      # HF_API_TOKEN é obrigatório (sem fallback fake); precisa vir do ambiente/.env.
+      HF_API_TOKEN: ${HF_API_TOKEN:?HF_API_TOKEN é obrigatório}
+      HF_MODEL: ${HF_MODEL:-MiniMaxAI/MiniMax-M3}
       HF_EMBEDDINGS_MODEL: ${HF_EMBEDDINGS_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
       HF_TIMEOUT_MS: ${HF_TIMEOUT_MS:-30000}
       RETRIEVAL_TOP_K: ${RETRIEVAL_TOP_K:-5}

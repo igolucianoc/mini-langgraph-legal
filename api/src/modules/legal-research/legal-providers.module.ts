@@ -12,37 +12,27 @@ import {
 import { DeterministicAnswerVerifier } from './domain/answer-verifier';
 import { HuggingFaceLlmProvider } from './infrastructure/huggingface/huggingface-llm.provider';
 import { HuggingFaceEmbeddingsProvider } from './infrastructure/huggingface/huggingface-embeddings.provider';
-import { LocalEmbeddingsProvider } from './infrastructure/local-embeddings.provider';
-import { RuleBasedLlmProvider } from './infrastructure/rule-based-llm.provider';
 import { PgVectorRetrievalProvider } from './infrastructure/pgvector-retrieval.provider';
 
 const llmProvider: Provider = {
   provide: LLM_PROVIDER,
-  useFactory: (config: AppConfigService): LlmProvider => {
-    if (config.aiProvider === 'huggingface' && config.hfApiToken) {
-      return new HuggingFaceLlmProvider({
-        apiToken: config.hfApiToken,
-        model: config.hfModel,
-        timeoutMs: config.hfTimeoutMs,
-      });
-    }
-    return new RuleBasedLlmProvider();
-  },
+  useFactory: (config: AppConfigService): LlmProvider =>
+    new HuggingFaceLlmProvider({
+      apiToken: config.hfApiToken,
+      model: config.hfModel,
+      timeoutMs: config.hfTimeoutMs,
+    }),
   inject: [AppConfigService],
 };
 
 const embeddingsProvider: Provider = {
   provide: EMBEDDINGS_PROVIDER,
-  useFactory: (config: AppConfigService): EmbeddingsProvider => {
-    if (config.aiProvider === 'huggingface' && config.hfApiToken) {
-      return new HuggingFaceEmbeddingsProvider({
-        apiToken: config.hfApiToken,
-        model: config.hfEmbeddingsModel,
-        timeoutMs: config.hfTimeoutMs,
-      });
-    }
-    return new LocalEmbeddingsProvider();
-  },
+  useFactory: (config: AppConfigService): EmbeddingsProvider =>
+    new HuggingFaceEmbeddingsProvider({
+      apiToken: config.hfApiToken,
+      model: config.hfEmbeddingsModel,
+      timeoutMs: config.hfTimeoutMs,
+    }),
   inject: [AppConfigService],
 };
 
@@ -60,7 +50,8 @@ const answerVerifier: Provider = {
 
 /**
  * Fornece os adapters concretos por trás dos contratos do domínio.
- * A escolha fake vs Hugging Face é feita por `AI_PROVIDER` (env).
+ * Toda IA (LLM e embeddings) é servida pela Hugging Face; não há fallback fake
+ * em runtime. O `HF_API_TOKEN` é obrigatório (validado no boot).
  */
 @Module({
   providers: [llmProvider, embeddingsProvider, retrievalProvider, answerVerifier],

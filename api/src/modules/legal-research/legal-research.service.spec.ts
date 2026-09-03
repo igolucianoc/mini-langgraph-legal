@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { LegalResearchService } from './legal-research.service';
 import { DeterministicAnswerVerifier } from './domain/answer-verifier';
 import { FakeRetrievalProvider } from './infrastructure/fake-retrieval.provider';
-import { RuleBasedLlmProvider } from './infrastructure/rule-based-llm.provider';
+import { FakeLlmProvider } from './testing/fake-llm.provider';
 import { buildFakeCorpus } from './testing/fake-corpus';
 import type { PrismaService } from '../../prisma/prisma.service';
 import type { AppConfigService } from '../../config/app-config.service';
@@ -35,7 +35,7 @@ function createService(retrieval?: RetrievalProvider) {
   const service = new LegalResearchService(
     prisma as unknown as PrismaService,
     config,
-    new RuleBasedLlmProvider(),
+    new FakeLlmProvider(),
     retrieval ?? new FakeRetrievalProvider(buildFakeCorpus()),
     new DeterministicAnswerVerifier(),
   );

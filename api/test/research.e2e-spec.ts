@@ -3,26 +3,44 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import {
+  LLM_PROVIDER,
+  EMBEDDINGS_PROVIDER,
+  RETRIEVAL_PROVIDER,
+} from '../src/modules/legal-research/domain/contracts';
+import { FakeLlmProvider } from '../src/modules/legal-research/testing/fake-llm.provider';
+import { FakeRetrievalProvider } from '../src/modules/legal-research/infrastructure/fake-retrieval.provider';
+import { buildFakeCorpus } from '../src/modules/legal-research/testing/fake-corpus';
 
 /**
  * Teste E2E do fluxo principal: login → pergunta → execução do grafo → resposta.
  *
- * Usa o provider FAKE (AI_PROVIDER não é 'huggingface'), portanto NÃO depende da
- * Hugging Face. Requer um Postgres acessível via DATABASE_URL com o schema
- * migrado e o seed aplicado (o script de e2e cuida disso).
+ * O runtime da aplicação usa SEMPRE a Hugging Face; para o E2E ser determinístico
+ * e não depender de rede, sobrescrevemos por DI os providers de IA e retrieval
+ * com fakes de teste. Requer um Postgres acessível via DATABASE_URL com o schema
+ * migrado (o script de e2e cuida disso). O retrieval usa corpus em memória, então
+ * não depende do seed vetorial.
  */
-describe('Research E2E (fake provider, sem Hugging Face)', () => {
+describe('Research E2E (providers de IA sobrescritos por fakes de teste)', () => {
   let app: INestApplication;
   let baseUrl: string;
 
   beforeAll(async () => {
-    process.env.AI_PROVIDER = 'fake';
+    // Token dummy só para satisfazer a validação de env (não é usado: HF é sobrescrito).
+    process.env.HF_API_TOKEN ??= 'e2e-dummy-token';
     process.env.JWT_ACCESS_SECRET ??= 'e2e-access';
     process.env.JWT_REFRESH_SECRET ??= 'e2e-refresh';
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(LLM_PROVIDER)
+      .useValue(new FakeLlmProvider())
+      .overrideProvider(EMBEDDINGS_PROVIDER)
+      .useValue({ embed: async () => [] })
+      .overrideProvider(RETRIEVAL_PROVIDER)
+      .useValue(new FakeRetrievalProvider(buildFakeCorpus()))
+      .compile();
 
     app = moduleRef.createNestApplication();
     await app.init();
