@@ -1,5 +1,6 @@
 // Prisma schema — Mini Legal Graph
-// A modelagem completa (documentos, chunks, execuções) chega na etapa 03.
+// Modelagem do domínio: usuários, documentos jurídicos fictícios com embeddings
+// (pgvector), perguntas de pesquisa, citações e execuções do grafo.
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["postgresqlExtensions"]
@@ -11,12 +12,143 @@ datasource db {
   extensions = [vector]
 }
 
+/// Área jurídica aproximada de um documento ou pergunta.
+enum LegalCategory {
+  CONTRACTS
+  DEFAULT_BREACH
+  CIVIL_LIABILITY
+  CIVIL_PROCEDURE
+  CONSUMER
+}
+
+/// Resultado final de uma execução do grafo.
+enum ResearchOutcome {
+  ANSWERED
+  INSUFFICIENT_EVIDENCE
+  DIRECT_ANSWER
+  FAILED
+}
+
+/// Status corrente da execução do grafo.
+enum ExecutionStatus {
+  STARTED
+  CLASSIFYING
+  RETRIEVING
+  EVIDENCE_EVALUATED
+  GENERATING
+  VERIFYING
+  COMPLETED
+  FAILED
+}
+
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String         @id @default(uuid()) @db.Uuid
+  email         String         @unique
+  passwordHash  String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  refreshTokens RefreshToken[]
+  queries       ResearchQuery[]
 
   @@map("users")
+}
+
+/// Refresh token rotativo, armazenado apenas como hash.
+model RefreshToken {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash      String    @unique
+  // Cadeia de rotação: aponta para o token que substituiu este.
+  replacedByHash String?
+  revokedAt      DateTime?
+  expiresAt      DateTime
+  createdAt      DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+/// Documento jurídico educacional/fictício da base.
+model LegalDocument {
+  id        String                @id @default(uuid()) @db.Uuid
+  slug      String                @unique
+  title     String
+  category  LegalCategory
+  source    String
+  summary   String
+  createdAt DateTime              @default(now())
+  chunks    LegalDocumentChunk[]
+
+  @@index([category])
+  @@map("legal_documents")
+}
+
+/// Trecho de um documento, com embedding para busca vetorial.
+model LegalDocumentChunk {
+  id         String        @id @default(uuid()) @db.Uuid
+  documentId String        @db.Uuid
+  document   LegalDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  ordinal    Int
+  content    String
+  // Coluna pgvector; manipulada via SQL raw (dimensão 384 = MiniLM-L6-v2).
+  embedding  Unsupported("vector(384)")?
+  citations  ResearchCitation[]
+
+  @@unique([documentId, ordinal])
+  @@index([documentId])
+  @@map("legal_document_chunks")
+}
+
+/// Pergunta jurídica submetida por um usuário.
+model ResearchQuery {
+  id            String              @id @default(uuid()) @db.Uuid
+  userId        String              @db.Uuid
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question      String
+  intent        String?
+  category      LegalCategory?
+  createdAt     DateTime            @default(now())
+  executions    ResearchExecution[]
+
+  @@index([userId])
+  @@map("research_queries")
+}
+
+/// Uma execução do workflow LangGraph para uma pergunta.
+model ResearchExecution {
+  id             String            @id @default(uuid()) @db.Uuid
+  queryId        String            @db.Uuid
+  query          ResearchQuery     @relation(fields: [queryId], references: [id], onDelete: Cascade)
+  correlationId  String            @unique
+  status         ExecutionStatus   @default(STARTED)
+  outcome        ResearchOutcome?
+  confidence     Float?
+  attempts       Int               @default(0)
+  evidenceCount  Int               @default(0)
+  model          String?
+  analysis       String?
+  latencyMs      Int?
+  error          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  citations      ResearchCitation[]
+
+  @@index([queryId])
+  @@map("research_executions")
+}
+
+/// Citação usada numa execução; sempre aponta para um chunk existente.
+model ResearchCitation {
+  id          String             @id @default(uuid()) @db.Uuid
+  executionId String             @db.Uuid
+  execution   ResearchExecution  @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  chunkId     String             @db.Uuid
+  chunk       LegalDocumentChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+  score       Float
+  snippet     String
+  createdAt   DateTime           @default(now())
+
+  @@index([executionId])
+  @@map("research_citations")
 }
