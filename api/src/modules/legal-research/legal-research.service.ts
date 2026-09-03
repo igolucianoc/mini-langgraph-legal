@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { AppConfigService } from '../../config/app-config.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -16,6 +16,7 @@ import type { LegalResearchState } from './graph/legal-research.state';
 import type { NodeContext } from './graph/nodes/node-context';
 import { mapStateToEvent } from './presentation/event-mapper';
 import type { ResearchEvent } from './presentation/research-events';
+import { ResearchObservability } from '../../shared/observability';
 
 export interface RunResearchInput {
   userId: string;
@@ -29,7 +30,7 @@ export interface RunResearchInput {
  */
 @Injectable()
 export class LegalResearchService {
-  private readonly logger = new Logger(LegalResearchService.name);
+  private readonly observability = new ResearchObservability();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -93,6 +94,13 @@ export class LegalResearchService {
         // Só emite quando o status muda, evitando eventos duplicados.
         if (state.status !== previousStatus) {
           previousStatus = state.status;
+          this.observability.event({
+            correlationId,
+            model: this.llm.modelName,
+            node: state.status,
+            evidenceCount: state.evidence.length,
+            attempts: state.attempt,
+          });
           const event = mapStateToEvent(state, correlationId);
           if (event) {
             yield event;
@@ -105,10 +113,18 @@ export class LegalResearchService {
       }
 
       await this.persistSuccess(query.id, execution.id, lastState, startedAt);
+      this.observability.event({
+        correlationId,
+        model: this.llm.modelName,
+        durationMs: Date.now() - startedAt,
+        evidenceCount: lastState.evidence.length,
+        attempts: lastState.attempt,
+        outcome: lastState.outcome ?? 'UNKNOWN',
+      });
       yield this.buildCompletedEvent(lastState, correlationId);
     } catch (error) {
       const message = this.safeErrorMessage(error);
-      this.logger.error(`Execução ${correlationId} falhou: ${message}`);
+      this.observability.failure(correlationId, this.llm.modelName, message);
       await this.persistFailure(execution.id, message, startedAt);
       yield {
         type: 'failed',
