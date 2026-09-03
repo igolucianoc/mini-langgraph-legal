@@ -19,6 +19,10 @@ coverage/
 
 # Prisma
 api/prisma/*.db
+# Artefatos JS compilados a partir dos .ts do prisma (seed roda via tsx)
+api/prisma/**/*.js
+api/prisma/**/*.js.map
+api/prisma/**/*.d.ts
 
 # Logs
 logs/
